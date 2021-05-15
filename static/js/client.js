@@ -211,8 +211,8 @@ function gotDevices(deviceInfos){
 		
 		var option = document.createElement('option');
 
-		option.text = deviceInfo.groupId;
-		option.value = deviceInfo.groupId;
+		option.text = deviceInfo.label;
+		option.value = deviceInfo.label;
 		if(deviceInfo.kind ==='audioinput'){
 			audioInputSource.appendChild(option);
 		}else if(deviceInfo.kind === 'audiooutput'){

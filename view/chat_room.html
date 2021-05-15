@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+</style>
+<title>Chat Room</title>
+<script src="https://cdn.jsdelivr.net/npm/socket.io-client@2.0.3/dist/socket.io.min.js"></script>
+</head>
+<body>
+  <table align="center">
+    <tr>
+      <td>
+        <label>UserName:</label>
+        <input type="text" id="username" />
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <label>room:</label>
+        <input type="text" id="room" />
+        <button id="connect">Connect</button>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <label>Content:</label>
+        <textarea disabled id="output" rows="10" cols="50"></textarea>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <label>Input:</label>
+        <textarea disabled id="input" rows="3" clos="50"></textarea>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <button id="send">Send</button>
+      </td>
+    </tr>
+  </table>
+</body>
+<script src="/static/js/chat.js"></script>
+<script >
+</script>
+</html>

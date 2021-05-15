@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="pragma" content="no-cache"/> 
+<meta http-equiv="cache-control" content="no-cache,must-revalidate"/>
+<meta http-equiv="expires" content="0"/>
+<title>WebRtc capture video and audio </title>
+<style>
+	.none {
+		-webkit-filter:none;
+	}
+	.blur {
+		-webkit-filter:blur(3px);
+	}
+	.grayscale {
+		-webkit-filter:grayscale(1);
+	}
+	.invert {
+		-webkit-filter:invert(1);
+	}
+	.sepia {
+		-webkit-filter:sepia(1);
+	}
+</style>
+</head>
+<body>
+	<div>
+		<label>audio input device:</label>
+		<select id="audioInputSource"></select>
+	</div>
+	<div>
+		<label>audio output device:</label>
+		<select id="audioOutputSource"></select>
+	</div>
+	<div>
+		<label>video input device:</label>
+		<select id="videoInputSource"></select>
+	</div>
+	<div>
+		<label>Filter:</label>
+		<select id="filter">
+			<option value="none">None</option>
+			<option value="blur">模糊</option>
+			<option value="grayscale">灰度</option>
+			<option value="invert">反色</option>
+			<option value="sepia">褐色</option>
+		</select>
+	<div>
+	
+	<div>
+		<button id="snapshot">从视频中获取图片</button>
+	</div>
+	<div>
+		<canvas id="picture" ></canvas>
+	</div>
+
+	<table>
+		<tr>
+			<td>
+				<video autoplay webkit-playsinline id="player"></video>
+			</td>
+			<td>
+				<video webkit-playsinline id="recvPlayer"></video>
+			</td>
+			<td>
+				<div id="constraints" class="output"></div>
+			</td>
+		</tr>
+		<tr>
+			<!--开始录制按钮-->
+			<td><button id="record">start record</button></td>
+			<!--播放录制的内容-->
+			<td><button id="recvplay" disabled>play</button></td>
+			<!--保存录制到文件-->
+			<td><button id="download" disabled>download</button></td>
+		</tr>
+	</table>
+	
+	<audio autoplay controls id="audioPlayer"></audio>
+</body>
+<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+<!-- <script src="/static/js/client.js"></script> -->
+<script src="/static/js/client_desktop.js"></script>
+<script >
+	setFilter();
+	setImageFromVideo();
+	playRecvVideo();
+	//getUserMedia();
+	getDisplayMedia();
+	//var videoInputSource = document.querySelector("select#videoInputSource");
+	//videoInputSource.onChange = getUserMedia;
+</script>
+</html>

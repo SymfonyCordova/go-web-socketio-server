@@ -20,5 +20,5 @@ func main() {
 	serveMux.HandleFunc("/p2p", controller.P2PController.P2P)
 
 	log.Println("Starting server...")
-	log.Panic(http.ListenAndServeTLS(":8080", "cert/www.mostyour.com.csr", "cert/www.mostyour.com.key", serveMux))
+	log.Panic(http.ListenAndServeTLS(":8080", "cert/www.mostyour.com.pem", "cert/www.mostyour.com.key", serveMux))
 }

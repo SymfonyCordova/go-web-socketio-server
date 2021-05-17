@@ -22,7 +22,7 @@ function createPeerConnection(){
 		var pcConfig = {
 			'iceServers':[
 				{
-					'urls':'stun:turn.mostyout.com',
+					'urls':'stun:turn.mostyour.com',
 					'credential':'123456',
 					'username':'webrtc',
 				},
@@ -58,7 +58,9 @@ function destoryPeerConnection(){
 }
 
 function conn(){
-	socket = io.connect("ws://127.0.0.1:8080",{
+	var localUrl = "ws://127.0.0.1:8080";
+	var lineUrl = "wss://webrtc.mostyour.com";
+	socket = io.connect(lineUrl,{
 	  autoConnect: true,
 	  transports:['websocket'],
 	});

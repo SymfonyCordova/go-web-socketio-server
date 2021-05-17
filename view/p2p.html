@@ -10,25 +10,21 @@
 </head>
 <body>
   <div>
-    <button id="start">Start</button>
-    <button id="call">Call</button>
-    <button id="hungup">Hungup</button>
+    <button id="connserver">连接信令服务器</button>
+    <button id="leave">离开房间</button>
   </div>
   <div>
     <div id="preview">
-      <h2>Local:</h2>
+      <h2>本地视频:</h2>
       <video id="localvideo" autoplay playsinline></video>
-      <h2>Offer SDP</h2>
-      <textarea id="offer"  style="resize:none"  rows="10" cols="50" ></textarea>
     </div>
     <div id="preview1">
-      <h2>Remote:</h2>
+      <h2>远程视频:</h2>
       <video id="remotevideo" autoplay playsinline></video>
-      <h2>Answer SDP</h2>
-      <textarea id="answer"  style="resize:none"  rows="10" cols="50" ></textarea>
     </div>
   </div>
 </body>
+<script src="https://cdn.jsdelivr.net/npm/socket.io-client@2.0.3/dist/socket.io.min.js"></script>
 <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
 <script src="/static/js/p2p.js"></script>
 <script >

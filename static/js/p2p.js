@@ -3,124 +3,201 @@
 var localVideo = document.querySelector('video#localvideo');
 var remoteVideo = document.querySelector('video#remotevideo');
 
-var btnStart = document.querySelector('button#start');
-var btnCall = document.querySelector('button#call');
-var btnHungup = document.querySelector('button#hungup');
-
-var offer = document.querySelector('textarea#offer');
-var answer = document.querySelector('textarea#answer');
+var btnConn = document.querySelector('button#connserver');
+var btnLeave = document.querySelector('button#leave');
 
 var localStream;
-var pc1;
-var pc2;
+var roomId;
+var socket = null;
+var state = 'init'
+var pc = null;
 
-btnStart.onclick = start;
-btnCall.onclick = call;
-btnHungup.onclick = hungup;
+btnConn.disabled = false;
+btnLeave.disabled = true;
 
-function start(){
-	if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-		console.log("getUserMedia is not supported!")
-	}else{
-		var constraints = {
-			video:{
-				width : 320,
-				height : 200,
-			},
-			audio : false,
+function createPeerConnection(){
+	console.log("create RTCPeerConnection!");
+	
+	if(!pc){
+		var pcConfig = {
+			'iceServers':[
+				{
+					'urls':'stun:turn.mostyout.com',
+					'credential':'123456',
+					'username':'webrtc',
+				},
+			],
 		};
-		navigator.mediaDevices.getUserMedia(constraints)
-			.then(gotMediaStream)
-			.catch(handleError);	
+		
+		pc = new RTCPeerConnection(pcConfig);
+		
+		pc.onicecandidate = (e) => {
+			if(e.candidate){
+				console.log("发现新的candidate", e.candidate)
+			}
+		};
+		
+		pc.ontrack = (e) => {
+			remoteVideo.srcObject = e.streams[0];
+		}
+	}
+	
+	if(localStream){
+		localStream.getTracks().forEach((track) => {
+			pc.addTrack(track);
+		});
 	}
 }
 
-//本机内1对1互通2
-function call(){
-	pc1 = new RTCPeerConnection();
-	pc2 = new RTCPeerConnection();
-	
-	//初始化双方的事件
-	pc1.onicecandidate = (e) => {
-		pc2.addIceCandidate(e.candidate);
-	};
-	
-	pc2.onicecandidate = (e) => {
-		pc1.addIceCandidate(e.candidate);
-	};
-	
-	//接收方 收到流事件
-	pc2.ontrack = getRemoteStream;
-	
-	//先添加流数据,再媒体协商 这个步骤不能乱
-	//1.添加流数据
-	localStream.getTracks().forEach((track) => {//发送方遍历采集到的轨
-		pc1.addTrack(track, localStream);//加入到pc1中
+function destoryPeerConnection(){
+	console.log("destory RTCPeerConnection!");
+	if(pc){
+		pc.close();
+		pc = null;
+	}
+}
+
+function conn(){
+	socket = io.connect("ws://127.0.0.1:8080",{
+	  autoConnect: true,
+	  transports:['websocket'],
 	});
-	//2.媒体协商
-	var offerOptions = {
-		offerToReceiveAudio:0,//没有音频
-		offerToReceiveVideo:1, //有视频
-	};
-	pc1.createOffer(offerOptions)
-		.then(getOffer)//成功创建处理函数
-		.catch(handleOfferError);
+	//////////////////////接收消息/////////////////////////
+	//发送join请求加入房间后，服务器回复joined表示加入房间成功
+	socket.on('joined', (message)=>{
+		console.log('receive joined message: ', message);
+		
+		state = "joined";
+		
+		createPeerConnection();
+		
+		btnConn.disabled = true;
+		btnLeave.disabled = false;
+		
+		console.log("receive joined message:state = ",state)
+	});
+	
+	//表示第二个人也加入进来了
+	socket.on('otherjoin', (message)=>{
+		console.log('receive otherjoin message: ', message);
+		
+		if(state === 'joined_unbind'){
+			createPeerConnection();
+		}
+		
+		state="joined_conn";
+		
+		//媒体协商
+		console.log("receive otherjoin message:state=",state)
+	});
+	
+	//发送join请求加入房间后，房间已经满了
+	socket.on('full', (message)=>{
+		console.log('receive full message: ', message);
+		
+		state = "leaved";
+		
+		socket.disconnect();
+		
+		btnConn.disabled=false;
+		btnLeave.disabled=true;
+		
+		console.log("receive full message:state=",state);
+		
+		alert("房间满了");
+	});
+	
+	//本人发送leave请求离开房间后，服务器回复leaved表示已经离开
+	socket.on('leaved', (message)=>{
+		console.log('receive leaved message: ', message);
+		
+		state = "leaved";
+		
+		socket.disconnect();
+		
+		btnConn.disabled=false;
+		btnLeave.disabled=true;
+		
+		console.log("receive leaved message:state=",state);
+	});
+
+	//别人发送leave请求加入房间后，服务器告诉当前客户端对方跟你说拜拜了
+	socket.on('bye', (message)=>{
+		console.log('receive bye message: ', message);
+		
+		state = 'joined_unbind';
+
+		destoryPeerConnection();
+		
+		console.log('receive bye message:state=', message);
+	});
+	
+	//双方发送消息
+	socket.on('message', (message)=>{
+		console.log('receive mm message: ', message);
+		//媒体协商
+	});
+	
+	///////////发送消息///////////////////
+	socket.emit('join', {id:1, channel:"ROOM_高三1班_503", text:"请求加入房间"});
+	return;
 }
 
-function hungup(){
-	pc1.close();
-	pc2.close();
-	pc1 = null;
-	pc2 = null;
-}
-
-//stream传入的流
-function gotMediaStream(stream){
-	localVideo.srcObject = stream;
+function getMediaStream(stream){
 	localStream = stream;
-}
-
-//接收方 收到流事件处理
-function getRemoteStream(conn){//接收方能接收到多个流
-	remoteVideo.srcObject = conn.streams[0];
-}
-
-function getOffer(desc){
-	pc1.setLocalDescription(desc); 
-	offer.value = desc.sdp;
-	//send desc to signal 发送到信令服务器
-	//receive desc from signal 接收信令服务器传递对方的信息
+	localVideo.srcObject=localStream;
 	
-	
-	pc2.setRemoteDescription(desc);
-	
-	pc2.createAnswer()
-		.then(getAnswer)
-		.catch(handleAnswerError);
+	conn();
 }
-
-function handleOfferError(e){
-	handleError(e);
-	console.log("Falied create offer");
-}
-
-
-function getAnswer(desc){
-	pc2.setLocalDescription(desc);
-	answer.value = desc.sdp;
-	
-	//send desc to signal 发送到信令服务器
-	//receive desc from signal 接收信令服务器传递对方的信息
-	
-	pc1.setRemoteDescription(desc);
-}
-
-function handleAnswerError(e){
-	handleError(e);
-	console.log("Falied create answer");
-}
-
 
 function handleError(err){
-	console.log(err.name + ": "+ err.message);	
+	console.error("navigator.mediaDevices.getUserMedia failed: ", err)
 }
+
+function start(){
+	if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+		console.error("the getUserMedia is not supported!")
+		return false;
+	}else{
+		var constraints = {
+			video:true,
+			audio : false,
+		};
+		navigator.mediaDevices.getUserMedia(constraints)
+			.then(getMediaStream)
+			.catch(handleError)
+	}
+}
+
+function connSignalServer(){
+	//开启本地视频
+	start();
+	return true;	
+}
+
+btnConn.onclick = connSignalServer;
+
+function closeLocalMedia(){
+	if(localStream && localStream.getTracks()){
+		localStream.getTracks().forEach((track)=>{
+			track.stop();
+		});
+	}
+	
+	localStream = null;
+}
+
+function leave(){
+	if(socket){
+		socket.emit("leave", {id: 200, channel:"ROOM_高三1班_503", text:"请求离开房间"})
+	}
+	
+	//释放资源
+	destoryPeerConnection();
+	
+	btnConn.disabled = false;
+	btnLeave.disabled = true;
+}
+
+btnLeave.onclick = leave;
+

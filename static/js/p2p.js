@@ -254,15 +254,26 @@ function handleError(err){
 
 //3.开启本地视频
 function start(){
-	if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-		console.error("the getUserMedia is not supported!")
-		return false;
-	}else{
+	//采集桌面 无法同时采集音频
+	//桌面是否可以调整分辨率
+	//共享整个桌面/共享某个应用/共享某块区域 桌面和头像一起出来
+	if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){
+		console.log("the getDisplayMedia is not supported!")
+	}
+	
+	//获取本地摄像头的流
+//	if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+//		console.error("the getUserMedia is not supported!")
+//		return false;
+//	}
+	
+	else{
 		var constraints = {
 			video:true,
 			audio : true,
 		};
-		navigator.mediaDevices.getUserMedia(constraints)
+		//navigator.mediaDevices.getUserMedia(constraints)
+		navigator.mediaDevices.getDisplayMedia(constraints)
 			.then(getMediaStream)
 			.catch(handleError)
 	}

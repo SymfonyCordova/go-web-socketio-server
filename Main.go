@@ -20,3 +20,5 @@ func main() {
 	//log.Panic(http.ListenAndServe(":8080", serveMux))
 	log.Panic(http.ListenAndServeTLS(":443", "cert/webrtc.mostyour.com.pem", "cert/webrtc.mostyour.com.key", serveMux))
 }
+
+//直播客户端的实现2

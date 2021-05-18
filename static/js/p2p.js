@@ -7,13 +7,54 @@ var btnConn = document.querySelector('button#connserver');
 var btnLeave = document.querySelector('button#leave');
 
 var localStream;
-var roomId;
+var roomId = "ROOM_高三1班_503";
 var socket = null;
 var state = 'init'
 var pc = null;
 
 btnConn.disabled = false;
 btnLeave.disabled = true;
+
+function getAnswer(desc){
+	pc.setLocalDescription(desc);
+	sendMessage(roomId, desc);
+}
+
+function handleAnswerError(err){
+	console.error("创建SDP应答失败 ", err);
+}
+
+//13.发给对方
+function sendMessage(roomId, data){
+	console.log("send p2p message ", roomId, data);
+	if(socket){
+		socket.emit("message", {errCode:200, roomId:roomId, resource:data, Hint:"我给你的协商信息，请答复我"})
+	}
+}
+
+function getOffer(desc){ //12.创建offer成功,向对方发送offer信息
+	pc.setLocalDescription(desc);//先将自己的信息存在本地
+	sendMessage(roomId, desc);//发给对方
+}
+
+
+function handleOfferError(err){
+	console.error("create offer 失败")
+}
+
+function call(){
+	if(state === 'joined_conn'){
+		if(pc){
+			var options = {
+				offerToReceiveAudio:true,
+				offerToReceiveVideo:true,
+			};
+			pc.createOffer(options)//11.媒体协商 创建offer
+				.then(getOffer)
+				.catch(handleOfferError);
+		}
+	}
+}
 
 function createPeerConnection(){
 	console.log("create RTCPeerConnection!");
@@ -34,6 +75,13 @@ function createPeerConnection(){
 		pc.onicecandidate = (e) => {
 			if(e.candidate){
 				console.log("发现新的candidate", e.candidate)
+				sendMessage(roomId, {
+					type:'candidate', 
+					label:e.candidate.sdpMLineIndex,
+					id:e.candidate.sdpMid,
+					candidate:e.candidate.candidate,
+				});
+				//sendMessage(e.candidate)
 			}
 		};
 		
@@ -42,9 +90,19 @@ function createPeerConnection(){
 		}
 	}
 	
+	if(pc=== null || pc === undefined){
+		console.error("pc is null or undefined ", pc);
+		return;
+	}
+	
+	if(localStream === null || localStream === undefined){
+		console.error("localStream is null or undefined ", pc);
+		return;
+	}
+	
 	if(localStream){
 		localStream.getTracks().forEach((track) => {
-			pc.addTrack(track);
+			pc.addTrack(track,localStream);
 		});
 	}
 }
@@ -57,8 +115,9 @@ function destoryPeerConnection(){
 	}
 }
 
+//5.连接信令服务器
 function conn(){
-	var localUrl = "ws://127.0.0.1:8080";
+	//var localUrl = "ws://10.0.11.71:8080";
 	var lineUrl = "wss://webrtc.mostyour.com";
 	socket = io.connect(lineUrl,{
 	  autoConnect: true,
@@ -66,7 +125,7 @@ function conn(){
 	});
 	//////////////////////接收消息/////////////////////////
 	//发送join请求加入房间后，服务器回复joined表示加入房间成功
-	socket.on('joined', (message)=>{
+	socket.on('joined', (message)=>{//7.服务器已经允许加入房间
 		console.log('receive joined message: ', message);
 		
 		state = "joined";
@@ -80,7 +139,7 @@ function conn(){
 	});
 	
 	//表示第二个人也加入进来了
-	socket.on('otherjoin', (message)=>{
+	socket.on('otherjoin', (message)=>{//9.服务器告知又一个人已经加入进来
 		console.log('receive otherjoin message: ', message);
 		
 		if(state === 'joined_unbind'){
@@ -89,17 +148,20 @@ function conn(){
 		
 		state="joined_conn";
 		
-		//媒体协商
+		//媒体协商 //10.服务器告知又一个人已经加入进来 开始媒体协商
+		call();
 		console.log("receive otherjoin message:state=",state)
 	});
 	
 	//发送join请求加入房间后，房间已经满了
-	socket.on('full', (message)=>{
+	socket.on('full', (message)=>{//8.服务器已经不允许加入房间
 		console.log('receive full message: ', message);
 		
 		state = "leaved";
 		
-		socket.disconnect();
+		destoryPeerConnection();
+		closeLocalMedia();
+		//socket.disconnect();
 		
 		btnConn.disabled=false;
 		btnLeave.disabled=true;
@@ -134,21 +196,55 @@ function conn(){
 		console.log('receive bye message:state=', message);
 	});
 	
-	//双方发送消息
-	socket.on('message', (message)=>{
-		console.log('receive mm message: ', message);
-		//媒体协商
+	socket.on("disconnect", (socket)=>{
+		if(state != "leaved"){
+			destoryPeerConnection();
+			closeLocalMedia();
+		}
+		state = "leaved";
+	});
+	
+	//接收对方发送过来的消息
+	socket.on('message', (message)=>{ //13.发给对方
+		console.log('receive client message: ', message);
+		//媒体协商 
+		if(message.resource){
+			console.log(message.resource);
+			if(message.resource.type === "offer"){
+				//message.resource就是SDP，但是是一个js对象或者说是一个文本并不是SDP对象需要转换
+				pc.setRemoteDescription(new RTCSessionDescription(message.resource));
+				pc.createAnswer()
+					.then(getAnswer)
+					.catch(handleAnswerError)
+			}else if(message.resource.type === "answer"){
+				//同理
+				pc.setRemoteDescription(new RTCSessionDescription(message.resource));
+				
+			}else if(message.resource.type === "candidate"){
+				console.log(message.resource)
+				var candidate = new RTCIceCandidate({
+					sdpMLineIndex:message.resource.label,
+					candidate:message.resource.candidate
+				});
+				pc.addIceCandidate(candidate);
+			}else{
+				console.error('Unknown message: ', message.resource)
+			}
+		}
 	});
 	
 	///////////发送消息///////////////////
-	socket.emit('join', {id:1, channel:"ROOM_高三1班_503", text:"请求加入房间"});
+	//{errCode:200, roomId:"ROOM_高三1班_503", resource:null, Hint:"李敏请求加入房间"}
+	socket.emit('join', {errCode:200, roomId:roomId, resource:1, hint:"李敏请求加入房间"}); //6.向服务器发送加入房间请求
 	return;
 }
 
+//3.获取本地采集的视频
 function getMediaStream(stream){
 	localStream = stream;
 	localVideo.srcObject=localStream;
 	
+	//4.连接信令服务器
 	conn();
 }
 
@@ -156,6 +252,7 @@ function handleError(err){
 	console.error("navigator.mediaDevices.getUserMedia failed: ", err)
 }
 
+//3.开启本地视频
 function start(){
 	if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
 		console.error("the getUserMedia is not supported!")
@@ -163,7 +260,7 @@ function start(){
 	}else{
 		var constraints = {
 			video:true,
-			audio : false,
+			audio : true,
 		};
 		navigator.mediaDevices.getUserMedia(constraints)
 			.then(getMediaStream)
@@ -171,12 +268,13 @@ function start(){
 	}
 }
 
+//2.连接服务器
 function connSignalServer(){
 	//开启本地视频
 	start();
 	return true;	
 }
-
+//1.连接服务器
 btnConn.onclick = connSignalServer;
 
 function closeLocalMedia(){
@@ -191,11 +289,12 @@ function closeLocalMedia(){
 
 function leave(){
 	if(socket){
-		socket.emit("leave", {id: 200, channel:"ROOM_高三1班_503", text:"请求离开房间"})
+		socket.emit("leave", {errCode: 200, roomId:roomId,resource:1, hint:"请求离开房间"})
 	}
 	
 	//释放资源
 	destoryPeerConnection();
+	closeLocalMedia();
 	
 	btnConn.disabled = false;
 	btnLeave.disabled = true;

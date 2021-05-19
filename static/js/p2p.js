@@ -6,6 +6,8 @@ var remoteVideo = document.querySelector('video#remotevideo');
 var btnConn = document.querySelector('button#connserver');
 var btnLeave = document.querySelector('button#leave');
 
+var bw = document.querySelector('select#bandwidth');
+
 var localStream;
 var roomId = "ROOM_高三1班_503";
 var socket = null;
@@ -17,6 +19,8 @@ btnLeave.disabled = true;
 
 function getAnswer(desc){
 	pc.setLocalDescription(desc);
+	
+	bw.disabled = false;//创建应答成功后可以开启控制速率的选项
 	sendMessage(roomId, desc);
 }
 
@@ -90,7 +94,7 @@ function createPeerConnection(){
 		}
 	}
 	
-	if(pc=== null || pc === undefined){
+	if(pc === null || pc === undefined){
 		console.error("pc is null or undefined ", pc);
 		return;
 	}
@@ -217,6 +221,7 @@ function conn(){
 					.then(getAnswer)
 					.catch(handleAnswerError)
 			}else if(message.resource.type === "answer"){
+				bw.disabled = false;//接收到应答成功后可以开启控制速率的选项
 				//同理
 				pc.setRemoteDescription(new RTCSessionDescription(message.resource));
 				
@@ -316,3 +321,46 @@ function leave(){
 
 btnLeave.onclick = leave;
 
+
+//控制速率
+function changeBw(){
+	bw.disabled = true;
+	
+	//拿到设置的速率
+	var bw1 = bw.options[bw.selectedIndex].value;
+	if(bw1 === "unlimited"){ //不限制就直接返回
+		return;
+	}
+	
+	var vsender = null;
+	var senders = pc.getSenders();
+	
+	//找到视频的sender
+	senders.forEach(sender => {
+		if(sender && sender.track.kind === 'video'){
+			vsender = sender;
+		}
+	});
+	
+	//获取视频的sender
+	var parameters = vsender.getParameters();
+	if(!parameters.encodings){
+		return;
+	}
+	
+	//处理一下数值
+	parameters.encodings[0].maxBitrate = bw1 * 1000;
+	
+	//设置速率
+	vsender.setParameters(parameters)
+			.then(()=>{
+				bw.disabled = false;
+				console.log("Successed to set parameters!");
+			})
+			.catch(err => {
+				console.log(err);
+			})
+	
+	
+}
+bw.onchange = changeBw;

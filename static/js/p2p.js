@@ -8,14 +8,42 @@ var btnLeave = document.querySelector('button#leave');
 
 var bw = document.querySelector('select#bandwidth');
 
+var chat = document.querySelector('textarea#chat');
+var sendTxt = document.querySelector('textarea#sendtxt');
+var btnSend = document.querySelector('button#send');
+
 var localStream;
 var roomId = "ROOM_高三1班_503";
 var socket = null;
 var state = 'init'
 var pc = null;
+var dc = null;
 
 btnConn.disabled = false;
 btnLeave.disabled = true;
+
+
+//非音视频的消息,接收到文本消息 
+function receiveTextMsg(e){
+	var msg = e.data;
+	if(msg){
+		chat.value += "->" + msg + "\r\n";
+	}else{
+		console.error("receive msg is null");
+	}
+}
+
+function dataChannelStateChange(){
+	var readyState = dc.readyState;
+	if(readyState === 'open'){
+		sendTxt.disabled = false;
+		send.disabled = false;
+	}else {
+		sendTxt.disabled = true;
+		send.disabled = true;
+	}
+}
+
 
 function getAnswer(desc){
 	pc.setLocalDescription(desc);
@@ -76,6 +104,7 @@ function createPeerConnection(){
 		
 		pc = new RTCPeerConnection(pcConfig);
 		
+		//发现新的candidate触发此函数
 		pc.onicecandidate = (e) => {
 			if(e.candidate){
 				console.log("发现新的candidate", e.candidate)
@@ -85,12 +114,20 @@ function createPeerConnection(){
 					id:e.candidate.sdpMid,
 					candidate:e.candidate.candidate,
 				});
-				//sendMessage(e.candidate)
 			}
 		};
 		
 		pc.ontrack = (e) => {
 			remoteVideo.srcObject = e.streams[0];
+		}
+		
+		pc.ondatachannel = (e) => {
+			if(!dc){
+				dc = e.channel;
+				dc.onmessage = receiveTextMsg;
+				dc.onopen = dataChannelStateChange;
+				dc.onclose = dataChannelStateChange;
+			}
 		}
 	}
 	
@@ -149,6 +186,12 @@ function conn(){
 		if(state === 'joined_unbind'){
 			createPeerConnection();
 		}
+		
+		//创建非音视频的文本通道
+		dc = pc.createDataChannel('chat');
+		dc.onmessage = receiveTextMsg;
+		dc.onopen = dataChannelStateChange;
+		dc.onclose = dataChannelStateChange;
 		
 		state="joined_conn";
 		
@@ -416,3 +459,16 @@ var timer = window.setInterval(()=>{
 			});
 	
 }, 1000);
+
+
+//发送文本
+function sendText(){
+	var data = sendTxt.value;
+	if(data){
+		dc.send(data);
+		chat.value += '<-' +data+'\r\n';
+	}
+	sendTxt.value = "";
+}
+
+btnSend.onclick=sendText

@@ -14,6 +14,18 @@
     <button id="leave">离开房间</button>
   </div>
   <div>
+    <label>控制速率:</label>
+    <select id="bandwidth" disabled>
+      <option value="unlimited" selected>unlimited</option>
+      <option value="2000">2000</option>
+      <option value="1000">1000</option>
+      <option value="500">500</option>
+      <option value="250">250</option>
+      <option value="125">125</option>
+    </select>
+    kbps
+  </div>
+  <div>
     <div id="preview">
       <h2>本地视频:</h2>
       <video id="localvideo" autoplay playsinline></video>

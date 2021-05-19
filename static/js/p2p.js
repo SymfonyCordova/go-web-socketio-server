@@ -411,6 +411,7 @@ function changeBw(){
 bw.onchange = changeBw;
 
 
+/*
 //统计信息
 var lastResult; //上一次的统计信息
 
@@ -459,7 +460,7 @@ var timer = window.setInterval(()=>{
 			});
 	
 }, 1000);
-
+*/
 
 //发送文本
 function sendText(){

@@ -370,7 +370,8 @@ bw.onchange = changeBw;
 
 //统计信息
 var lastResult; //上一次的统计信息
-window.setInterval(()=>{
+
+var timer = window.setInterval(()=>{
 	var videoSender = null;
 	var senders = pc.getSenders();
 	//找到视频的sender
@@ -384,7 +385,7 @@ window.setInterval(()=>{
 		return;
 	}
 	
-	sender.getStats()
+	videoSender.getStats()
 			.then(reports => {
 				reports.forEach(report => {
 					if(report.type === 'outbound-rtp'){//发送的报告

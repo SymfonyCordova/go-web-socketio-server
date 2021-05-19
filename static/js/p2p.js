@@ -251,6 +251,8 @@ function getMediaStream(stream){
 	
 	//4.连接信令服务器
 	conn();
+	
+	//第三方统计绘图初始化
 }
 
 function handleError(err){
@@ -358,9 +360,58 @@ function changeBw(){
 				console.log("Successed to set parameters!");
 			})
 			.catch(err => {
-				console.log(err);
+				console.error(err);
 			})
 	
 	
 }
 bw.onchange = changeBw;
+
+
+//统计信息
+var lastResult; //上一次的统计信息
+window.setInterval(()=>{
+	var videoSender = null;
+	var senders = pc.getSenders();
+	//找到视频的sender
+	senders.forEach(sender => {
+		if(sender && sender.track.kind === 'video'){
+			videoSender = sender;
+		}
+	});
+	
+	if(!videoSender){
+		return;
+	}
+	
+	sender.getStats()
+			.then(reports => {
+				reports.forEach(report => {
+					if(report.type === 'outbound-rtp'){//发送的报告
+						if(report.isRemote){//是远程发送的报告 忽略
+							return;
+						}
+						//拿到本地发送的报告
+						var currentTime = report.timestamp;
+						var bytes = report.bytesSent;
+						var packets = report.packetsSent;
+						
+						
+						if(lastResult && lastResult.has(report.id)){
+							var lastResultTime = lastResult.get(report.id).timestamp;
+							var lastResultBytes = lastResult.get(report.id).bytesSent;
+							var lastResultPackets = lastResult.get(report.id).packetsSent;
+							
+							var bitrate = 8 * (bytes-lastResultBytes) / (currentTime-lastResultTime);
+							var pkts = packets - lastResultPackets;
+							console.log(currentTime, bytes, pkts);
+						}
+					}
+				});
+				lastResult = reports;
+			})
+			.catch(err => {
+				console.error(err);
+			});
+	
+}, 1000);

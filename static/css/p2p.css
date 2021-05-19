@@ -11,3 +11,12 @@ button{
 	width:120px;
 	margin-left: 50px;
 }
+
+#bwp1{
+	float: left;
+}
+
+#bwp2{
+	float: left;
+	margin-left: 50px;
+}
